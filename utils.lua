@@ -59,6 +59,11 @@ function M.placeSetup(Blocks, GV)
   -- 1) Miner
   if M.selectItem(Blocks.BLOCK_MINER) then
     turtle.placeUp()
+    GV.miner = peripheral.wrap("top")
+    print(">>> Debug: Surrounding peripherals:")
+    for _, side in ipairs(peripheral.getNames()) do
+    print("  ", side, ":", peripheral.getType(side))
+    end
     -- move to energy-facing side
     turtle.turnRight(); turtle.forward(); turtle.forward(); turtle.turnLeft()
     -- 2) Energy block
