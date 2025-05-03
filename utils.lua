@@ -56,45 +56,74 @@ end
 -- Blocks = table of BLOCK_MINER, BLOCK_ENERGY, etc.
 -- GV = global vars table returned to caller
 function M.placeSetup(Blocks, GV)
-  -- 1) Miner
-  if M.selectItem(Blocks.BLOCK_MINER) then
-    turtle.placeUp()
-    GV.miner = peripheral.wrap("top")
-    print(">>> Debug: Surrounding peripherals:")
-    for _, side in ipairs(peripheral.getNames()) do
-    print("  ", side, ":", peripheral.getType(side))
-    end
-    -- move to energy-facing side
-    turtle.turnRight(); turtle.forward(); turtle.forward(); turtle.turnLeft()
-    -- 2) Energy block
-    if M.selectItem(Blocks.BLOCK_ENERGY) then
+  --––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+  -- 1) place the Digital Miner and wrap it _immediately_ on "top"
+  --––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+  -- select the block
+  local got, idx = M.selectItem(Blocks.BLOCK_MINER)
+  if not got then
+    error("🛑 Missing block in inventory: "..Blocks.BLOCK_MINER)
+  end
+  turtle.select(idx)
+
+  -- place it above, then wrap before any movement
+  turtle.placeUp()
+  GV.m_pMiner = peripheral.wrap("top")
+  if not GV.m_pMiner then
+    -- print a little debug before bailing
+    print(">>> Surrounding peripherals: "..table.concat(peripheral.getNames(), ", "))
+    error("🛑 Failed to wrap Digital Miner on top!")
+  end
+
+  --––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+  -- 2) now that miner is safely wrapped, you can continue placing energy, storage, etc.
+  --––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+  turtle.turnRight(); turtle.forward(); turtle.forward(); turtle.turnLeft()
+
+  -- select & place your energy block
+  got, idx = M.selectItem(Blocks.BLOCK_ENERGY)
+  if not got then error("🛑 Missing block: "..Blocks.BLOCK_ENERGY) end
+  turtle.select(idx)
+  turtle.placeUp()
+
+  -- move into position for storage…
+  turtle.forward(); turtle.forward(); turtle.turnLeft()
+  turtle.forward(); turtle.forward(); turtle.up()
+
+  -- storage block
+  got, idx = M.selectItem(Blocks.BLOCK_STORAGE)
+  if not got then error("🛑 Missing block: "..Blocks.BLOCK_STORAGE) end
+  turtle.select(idx)
+  turtle.placeUp()
+
+  -- chunkloader (if needed)
+  if not GV.m_bIsChunkyTurtle then
+    got, idx = M.selectItem(Blocks.BLOCK_CHUNKLOADER)
+    if got then
+      GV.m_bHasChunkLoader = true
+      turtle.select(idx)
       turtle.placeUp()
-      turtle.forward(); turtle.forward(); turtle.turnLeft(); turtle.forward(); turtle.forward(); turtle.up()
-      -- 3) Storage
-      if M.selectItem(Blocks.BLOCK_STORAGE) then
-        turtle.placeUp()
-        turtle.forward()
-        -- 4) Chunk loader (if not chunky turtle)
-        if not GV.isChunky and M.selectItem(Blocks.BLOCK_CHUNKLOADER) then
-          GV.hasChunkLoader = true
-          turtle.placeUp()
-        end
-        -- reposition for chat box
-        turtle.forward(); turtle.turnLeft(); turtle.forward(); turtle.forward()
-        if GV.isChunky then turtle.turnLeft() end
-        -- 5) Chat box
-        if M.selectItem(Blocks.BLOCK_CHATBOX) then
-          GV.hasChatBox = true
-          turtle.placeUp()
-        end
-        sleep(0.3)
-        -- Wrap peripherals
-        GV.chatBox = M.getPeripheralWrap("chat_box")
-        GV.miner   = M.getPeripheralWrap("digital_miner")
-      end
     end
   end
+
+  -- move into chat‐box spot
+  turtle.forward(); turtle.turnLeft(); turtle.forward(); turtle.forward()
+  if GV.m_bIsChunkyTurtle then turtle.turnLeft() end
+
+  -- chat box (optional)
+  got, idx = M.selectItem(Blocks.BLOCK_CHATBOX)
+  if got then
+    GV.m_bHasChatBox = true
+    turtle.select(idx)
+    turtle.placeUp()
+  end
+
+  sleep(0.3)
+  -- wrap chat box if present
+  GV.m_pChatBox = peripheral.wrap("top")   -- or M.getPeripheralWrap("chat_box")
 end
+
+return M
 
 --- Digs up all the blocks placed earlier, resetting the turtle to its original spot.
 function M.destroyBlocks(GV)
